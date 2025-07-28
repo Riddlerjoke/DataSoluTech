@@ -1,0 +1,14 @@
+pandas
+scipy
+seaborn
+openpyxl
+fastapi
+uvicorn
+pydantic
+requests
+psycopg2
+sqlalchemy
+great-expectations
+python-multipart
+python-dotenv
+pymongo
