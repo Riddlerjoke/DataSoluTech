@@ -4,7 +4,8 @@ seaborn
 openpyxl
 fastapi
 uvicorn
-pydantic
+pydantic>=2.0.0
+pydantic_core
 requests
 psycopg2
 sqlalchemy
@@ -12,3 +13,10 @@ great-expectations
 python-multipart
 python-dotenv
 pymongo
+boto3
+pytest
+pytest-cov
+joblib
+passlib
+pydantic_settings
+motor

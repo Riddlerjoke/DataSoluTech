@@ -1,1 +1,8 @@
 .env
+/.env.exemple
+/.env
+/node_modules
+/dist
+/.cache
+.venv
+.idea

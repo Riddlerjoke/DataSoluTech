@@ -2,37 +2,31 @@ services:
   mongodb:
     image: mongo
     container_name: mongodb
+    ports:
+      - "27017:27017"
     volumes:
       - mongodb-data:/data/db
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
       - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
-    networks:
-      - backend-network
 
   fastapi:
     build:
       context: ./backend
       dockerfile: Dockerfileapi
     container_name: api
+    ports:
+      - "8000:8000"
     volumes:
       - ./backend:/backend
       - images:/images
     depends_on:
       - mongodb
-    networks:
-      - backend-network
-      - frontend-network
     environment:
       - ENV=production
 
 
-networks:
-  backend-network:
-    driver: bridge
-  frontend-network:
-    driver: bridge
 
 volumes:
   mongodb-data:

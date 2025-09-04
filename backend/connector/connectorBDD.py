@@ -6,7 +6,7 @@ from pymongo.collection import Collection
 from pymongo.errors import OperationFailure
 from passlib.context import CryptContext
 
-from app.core.config import settings
+from core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -49,30 +49,6 @@ class MongoAccess:
         return self.db["users_db"]
 
     @property
-    def sessions_collection(self) -> Collection:
-        return self.db["sessions_db"]
-
-    @property
-    def prompt_collection(self) -> Collection:
-        return self.db["prompt_db"]
-
-    @property
-    def documentation_collection(self) -> Collection:
-        return self.db["documentation_db"]
-
-    @property
-    def commentaire_collection(self) -> Collection:
-        return self.db["commentaire_db"]
-
-    @property
-    def image_collection(self) -> Collection:
-        return self.db["image_db"]
-
-    @property
-    def video_collection(self) -> Collection:
-        return self.db["video_db"]
-
-    @property
     def data_cleaning_db(self) -> Collection:
         return self.db["data_cleaning_db"]
 
@@ -85,8 +61,7 @@ class MongoAccess:
         les documents sont insérés après la création. Pour la collection 'users_db', les superadmins
         sont créés après la création de la collection.
         """
-        required_collections = ['users_db', 'sessions_db', 'prompt_db',
-                                "documentation_db", "commentaire_db", "image_db", "video_db", "data_cleaning_db"]
+        required_collections = ['users_db', "data_cleaning_db"]
         existing_collections = self.db.list_collection_names()
 
         for collection_name in required_collections:
@@ -104,21 +79,11 @@ class MongoAccess:
             else:
                 print(f"Collection '{collection_name}' existe déjà.")
 
-    def populate_documentation_collection(self):
-        """
-        Insère les liens de documentation dans la collection 'documentation_db'.
-        """
-        json_path = os.path.join(os.path.dirname(__file__), 'doc_link.json')
-        with open(json_path) as file:
-            documentation_links = json.load(file)
-        self.documentation_collection.insert_many(documentation_links)
-        print("Documents insérés dans 'documentation_db' avec succès.")
-
     def create_superadmin(self):
         """
         Crée les superadmins dans la base de données.
         """
-        json_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+        json_path = os.path.join(os.path.dirname(__file__), 'auth_roles.json')
         with open(json_path) as file:
             superadmins = json.load(file)
         for superadmin in superadmins:
