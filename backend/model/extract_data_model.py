@@ -13,6 +13,7 @@ from bson import ObjectId
 # - OpenAPI voit un "string" (pattern hex 24)
 # - validation -> conversion en ObjectId
 # - sérialisation JSON -> string
+
 def _validate_hex24(v):
     if isinstance(v, ObjectId):
         return v

@@ -117,7 +117,7 @@ class DatasetCRUD:
         except ValueError:
             return None
 
-        dataset = await self.collection.find_one({"_id": oid})
+        dataset = self.collection.find_one({"_id": oid})
         if dataset:
             return DatasetInDB(**dataset)
         return None
@@ -162,7 +162,7 @@ class DatasetCRUD:
         update_data.setdefault("updated_at", datetime.now())
 
         if not update_data:
-            # Pas de données => renvoyer l'existant si présent
+            # Pas de données → renvoyer l'existant si présent
             return await self.get_dataset(dataset_id)
 
         result: UpdateResult = await self.collection.update_one(
