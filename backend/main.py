@@ -115,7 +115,7 @@ async def update_dataset(
         raise HTTPException(status_code=404, detail="Dataset not found")
     return dataset
 
-@app.delete("/api/v1/datasets/{dataset_id}", status_code=204)
+@app.delete("/api/v1/datasets/{dataset_id}", status_code=200)
 async def delete_dataset(
     dataset_id: str,
     dataset_crud: DatasetCRUD = Depends(get_dataset_crud),
