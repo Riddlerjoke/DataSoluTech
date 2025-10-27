@@ -1,8 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+
+# Data (never commit raw patient-like data)
+data/
+!data/raw/.gitkeep
+
+
+# Env files
 .env
-/.env.exemple
-/.env
-/node_modules
-/dist
-/.cache
-.venv
-.idea
+
+
+# VSCode / IDE
+.vscode/
+.idea/

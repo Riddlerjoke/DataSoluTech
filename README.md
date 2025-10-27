@@ -1,128 +1,211 @@
-# Project MongoDocker
+# 🏥 Migration d’un dataset Santé → MongoDB (MVP)
 
-## Contexte
-- Ce projet fournit une API de traitement et de préparation de données (CSV) basée sur FastAPI.
-- Les jeux de données sont ingérés (upload CSV), inspectés (échantillon, colonnes, nombre de lignes), stockés et versionnés dans MongoDB.
-- L’application est conteneurisée avec Docker (un service FastAPI et un service MongoDB) pour un démarrage simple et reproductible.
+Ce dépôt propose un **MVP simple et reproductible** pour migrer un **jeu de données de santé synthétique** (issu de Kaggle) vers une base de données **MongoDB**, en utilisant **Docker**.  
+L’objectif est de mettre en place une **chaîne d’ingestion robuste** sans développer d’API ni d’interface UI, pour garder le projet clair et stable.
 
-## Architecture (vue d’ensemble)
-- Backend: FastAPI (dossier backend/)
-  - Endpoints REST sous /api/v1
-  - Chargement de CSV, extraction de méta‑données, opérations simples de nettoyage (drop_na, fill_na, drop_columns, rename_columns)
-  - Persistance des métadonnées (datasets) et des lignes en collections MongoDB
-- Base de données: MongoDB
-  - Authentification via variables d’environnement (root/password définis dans .env)
-  - Volumes Docker pour la persistance
-- Fichiers/Volumes côté backend:
-  - backend/data/uploaded_files: fichiers CSV téléversés et fichiers transformés
-  - backend/data/cleaned_files: fichiers nettoyés via l’endpoint /clean
+---
 
-### Pré‑requis
-- Option 1 (recommandée): Docker et Docker Compose
-- Option 2 (exécution locale): Python 3.12+, pip, et un MongoDB accessible (par ex. le service MongoDB du docker-compose)
+## 🚀 Fonctionnalités
 
-### Configuration
-1) Dupliquer le fichier .env.exemple à la racine en .env puis renseigner au minimum:
-   - MONGO_USERNAME
-   - MONGO_PASSWORD
-   - MONGO_DATABASE (nom de la base logique; par défaut côté code: data_cleaning_db)
-   - MONGO_HOST (par défaut: mongodb quand vous utilisez docker-compose)
-   - MONGO_PORT (par défaut: 27017)
+- 🐳 MongoDB **conteneurisé avec authentification activée**
+- 🔐 Création automatique des utilisateurs et rôles (`ingestor`, `analyst`, `adminuser`) au démarrage
+- 📊 Un job de migration (conteneur `migrator`) qui :
+  - Lit un fichier CSV
+  - Nettoie et normalise les données
+  - Insère les documents dans la base `meddb`
+  - Crée des index utiles
+- 📜 Documentation incluse :
+  - Schéma de la base
+  - Rôles et accès
+  - Commandes MongoDB de base
+- ☁️ Base prête à être déployée sur AWS
 
-### Exemple .env (développement rapide)
-- MONGO_USERNAME=root
-- MONGO_PASSWORD=example
-- MONGO_DATABASE=data_cleaning_db
-- MONGO_HOST=mongodb
-- MONGO_PORT=27017
-- NODE_ENV=dev
+---
 
-## Démarrer avec Docker (recommandé)
-1) Depuis la racine du projet, avec votre .env prêt:
-   - docker compose up -d --build
-2) Accès:
-   - API: http://localhost:8000
-   - Documentation interactive (Swagger): http://localhost:8000/docs
-   - Le service MongoDB écoute sur le port 27017 (exposé en local).
-3) Arrêt:
-   - docker compose down
+## 🧰 Prérequis
 
-### Exécution locale (sans le conteneur FastAPI)
-Vous pouvez utiliser Docker uniquement pour MongoDB, puis démarrer FastAPI localement.
-1) Démarrer MongoDB via docker-compose:
-   - docker compose up -d mongodb
-2) Configurer l’environnement Python:
-   - cd backend
-   - python -m venv .venv
-   - .venv\Scripts\activate (Windows) ou source .venv/bin/activate (macOS/Linux)
-   - pip install -r requirements.txt
-3) Lancer l’API en développement:
-   - uvicorn main:app --reload --host 0.0.0.0 --port 8000
-4) Ouvrir http://localhost:8000/docs
+- [Docker](https://www.docker.com/)  
+- [Docker Compose](https://docs.docker.com/compose/)  
+- Quelques notions de ligne de commande
 
-## Principaux endpoints (résumé)
-- GET /
-  - Vérification de vie: {"message": "Bienvenue dans l'API de traitement de données."}
+---
 
-- POST /api/v1/datasets/
-  - Crée un dataset à partir d’un fichier CSV (multipart/form-data)
-  - Champs: file (CSV), name (str), description (str, optionnel), source (str, optionnel)
-  - Retourne les métadonnées du dataset et crée une collection dédiée pour les lignes
+## ⚙️ Installation et configuration
 
-- GET /api/v1/datasets/
-  - Liste paginée des datasets (query: skip, limit)
+1. **Cloner le dépôt**
+```bash
+git clone https://github.com/your-username/healthcare-mongo-mvp.git
+cd healthcare-mongo-mvp
+```
 
-- GET /api/v1/datasets/{dataset_id}
-  - Détail d’un dataset
+2. **Configurer les variables d’environnement**
+```bash
+cp .env.example .env
+```
 
-- PUT /api/v1/datasets/{dataset_id}
-  - Mise à jour partielle des métadonnées d’un dataset
+3. **Démarrer MongoDB (avec création des rôles)**
+```bash
+docker compose up -d mongodb
+```
 
-- DELETE /api/v1/datasets/{dataset_id}
-  - Supprime un dataset
+✅ Cette commande :
+- Lance le conteneur MongoDB  
+- Exécute automatiquement `init-mongo.js` pour créer les utilisateurs  
+- Active l’authentification
 
-- POST /api/v1/datasets/{dataset_id}/process
-  - Applique des opérations simples sur le CSV d’origine et met à jour les métadonnées (colonnes, total_rows, échantillon)
-  - Body JSON (exemples d’opérations):
-    [
-      {"type": "drop_na", "columns": ["col1", "col2"]},
-      {"type": "fill_na", "value": 0, "columns": ["age"]},
-      {"type": "drop_columns", "columns": ["to_remove"]},
-      {"type": "rename_columns", "rename_dict": {"old": "new"}}
-    ]
+4. **Lancer la migration des données**
+```bash
+docker compose run --rm migrator
+```
 
-- POST /upload/
-  - Dépose un fichier CSV brut dans backend/data/uploaded_files (utile pour tests simples)
+📝 Cette étape :
+- Lit `/data/raw/healthcare_dataset.csv`
+- Normalise les noms de colonnes
+- Insère les documents nettoyés dans `meddb.patients`
+- Crée les index
 
-- POST /clean/
-  - Nettoie un CSV (dropna simple) et l’enregistre dans backend/data/cleaned_files
+---
 
-### Notes sur la base de données
-- Hôte MongoDB en Docker: mongodb (réseau interne docker-compose). Depuis l’API, la connexion utilise: mongodb://<user>:<password>@mongodb:27017
-- Collections créées automatiquement au démarrage si absentes:
-  - users_db (des "superadmins" peuvent être chargés depuis backend/connector/auth_roles.json)
-  - data_cleaning_db (stocke les datasets)
+## 📦 Commandes Docker utiles
 
-## Structure du projet (extrait)
-- docker-compose.yml: orchestre MongoDB et l’API
-- backend/
-  - main.py: définition des routes FastAPI
-  - app/extract_data.py: logique d’extraction et de traitement
-  - crud/extract_data_crud.py: accès aux données (PyMongo)
-  - model/extract_data_model.py: schémas Pydantic
-  - connector/connectorBDD.py: connexion MongoDB et initialisation
-  - core/config.py: configuration (variables d’environnement)
-  - Dockerfileapi: image de l’API
+- Voir les conteneurs actifs :
+```bash
+docker ps
+```
 
-### Dépannage
-- Erreur d’authentification MongoDB
-  - Vérifiez MONGO_USERNAME/MONGO_PASSWORD/MONGO_DATABASE dans .env.
-  - Supprimez le volume Mongo si vous avez changé les identifiants après un premier démarrage: docker compose down -v puis docker compose up -d
-- L’API ne répond pas sur localhost:8000
-  - Vérifiez que le service fastapi est up: docker compose ps
-  - Consultez les logs: docker compose logs -f fastapi
-- Impossible de lire le CSV
-  - Assurez-vous que le fichier est bien au format .csv et encodé correctement (UTF-8 conseillé).
+- Stopper les conteneurs :
+```bash
+docker compose down
+```
 
-Licence
-- Projet à usage interne/éducatif.
+- Rebuild du conteneur migrator après modification du script :
+```bash
+docker compose build migrator
+```
+
+- Redémarrer MongoDB proprement :
+```bash
+docker compose down -v
+docker compose up -d mongodb
+```
+
+---
+
+## 🧑‍💻 Connexion à MongoDB (ligne de commande)
+
+Pour ouvrir un shell MongoDB dans le conteneur :
+
+```bash
+docker compose exec mongodb mongosh "mongodb://analyst:analystpass@localhost:27017/meddb?authSource=admin"
+```
+
+> ℹ️ Les identifiants (`analyst`, `ingestor`, `adminuser`) sont définis dans `init-mongo.js` ou dans `.env`.  
+> `analyst` dispose d’un accès **lecture seule**, tandis que `ingestor` et `adminuser` ont plus de privilèges.
+
+---
+
+## 🧭 Commandes MongoDB de base
+
+### Afficher les bases de données :
+```javascript
+show dbs
+```
+
+### Utiliser la base de données :
+```javascript
+use meddb
+```
+
+### Voir les collections :
+```javascript
+show collections
+```
+
+### Compter le nombre de documents :
+```javascript
+db.patients.countDocuments()
+```
+
+### Rechercher un patient par nom (insensible à la casse) :
+```javascript
+db.patients.findOne({ name: { $regex: "^paul hendersOn$", $options: "i" } })
+```
+
+### Obtenir un échantillon de données :
+```javascript
+db.patients.find().limit(5).pretty()
+```
+
+---
+
+## 🧾 Schéma de la base de données (simplifié)
+
+```json
+{
+  "_id": "PAT-123",
+  "name": "John Doe",
+  "age": 45,
+  "gender": "Male",
+  "blood_type": "O+",
+  "diagnosis": "Hypertension",
+  "treatment": "Paracetamol",
+  "lab_result": "Inconclusive",
+  "admission_date": "2020-05-15T00:00:00Z",
+  "discharge_date": "2020-06-08T00:00:00Z",
+  "visit_date": "2020-06-08T00:00:00Z",
+  "doctor": "Stephanie Kramer",
+  "hospital": "Wilson Group",
+  "insurance": "Medicare",
+  "billing_amount": 33211.29,
+  "room_number": "109",
+  "department": "Emergency",
+  "createdAt": "2025-10-27T15:10:03Z",
+  "updatedAt": "2025-10-27T15:10:03Z",
+  "source": "kaggle_healthcare_dataset_v1"
+}
+```
+
+---
+
+## 👤 Utilisateurs & rôles
+
+| Utilisateur     | Rôle MongoDB                 | Permissions                            |
+|------------------|------------------------------|-----------------------------------------|
+| `analyst`        | `read`                       | Lecture seule                          |
+| `ingestor`       | `readWrite`                  | Lecture + écriture (migration)         |
+| `adminuser`      | `userAdminAnyDatabase`       | Administration complète                |
+
+📝 Ces utilisateurs sont créés automatiquement à l’initialisation grâce au fichier `init-mongo.js`.
+
+---
+
+## ☁️ Déploiement futur sur AWS (optionnel)
+
+- Utiliser Amazon DocumentDB ou une instance MongoDB auto-hébergée  
+- Sauvegarder les données sur Amazon S3  
+- Gérer les conteneurs avec Amazon ECS  
+- Sécuriser les identifiants avec AWS Secrets Manager
+
+---
+
+## 🧹 Nettoyage
+
+```bash
+docker compose down -v
+```
+
+Cette commande **arrête et supprime** tous les conteneurs, volumes et réseaux liés au projet.
+
+---
+
+## 📚 Références
+
+- [Documentation MongoDB](https://www.mongodb.com/docs/)  
+- [Documentation Docker](https://docs.docker.com/)  
+- [Kaggle](https://www.kaggle.com/)  
+- [Amazon DocumentDB](https://aws.amazon.com/documentdb/)
+
+---
+
+✨ **Principe MVP** : faire simple, stable et reproductible.  
+Une fois le pipeline d’ingestion maîtrisé, il est facile d’y ajouter une API (par exemple avec FastAPI) ou une interface (par exemple avec Streamlit).
